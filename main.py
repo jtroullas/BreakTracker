@@ -20,7 +20,7 @@ import database as db
 import pdf_parser
 
 # ── Jinja2 setup (raw, no Starlette wrapper) ─────────────────────────────────
-TEMPLATES_DIR = Path(__file__).parent / "templates"
+TEMPLATES_DIR = Path(__file__).resolve().parent / "templates"
 _jinja_env = jinja2.Environment(
     loader=jinja2.FileSystemLoader(str(TEMPLATES_DIR)),
     autoescape=jinja2.select_autoescape(["html"]),
