@@ -1,0 +1,9 @@
+{#
+  partials/associate_grid.html
+  Just the card grid — extracted so the PDF import endpoint can return
+  the whole refreshed grid without a full page reload.
+  Expects `associates` in context.
+#}
+{% for associate in associates %}
+  {% include "partials/associate_card.html" %}
+{% endfor %}

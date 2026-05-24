@@ -1,0 +1,96 @@
+{#
+  partials/break_log.html
+  Groups completed breaks/lunches by associate.
+  Each name row is a <details> that expands to show individual entries.
+  `log` is a list of dicts: {name, breaks, total_breaks, total_mins}
+#}
+
+{% if log %}
+  <div class="divide-y divide-gray-100">
+    {% for group in log %}
+      <details class="group">
+
+        <!-- Summary row — always visible -->
+        <summary
+          class="flex items-center gap-3 px-4 py-3 cursor-pointer
+                 hover:bg-gray-50 transition-colors select-none list-none"
+        >
+          <!-- Chevron -->
+          <svg class="h-4 w-4 text-gray-400 transition-transform group-open:rotate-90 flex-shrink-0"
+               fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M9 5l7 7-7 7"/>
+          </svg>
+
+          <!-- Name -->
+          <span class="font-semibold text-gray-800 flex-1 text-sm">{{ group.name }}</span>
+
+          <!-- Break count badge -->
+          <span class="inline-flex items-center justify-center min-w-[1.5rem] h-5 px-1.5
+                       rounded-full bg-gray-100 text-gray-500 text-xs font-bold">
+            {{ group.total_breaks }}
+          </span>
+
+          <!-- Total time -->
+          <span class="text-xs text-gray-400 font-mono w-16 text-right">
+            {{ group.total_mins }} min
+          </span>
+        </summary>
+
+        <!-- Expanded rows -->
+        <div class="bg-gray-50 border-t border-gray-100">
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="border-b border-gray-200">
+                <th class="text-left px-8 py-2 text-gray-400 uppercase tracking-wide font-semibold">Type</th>
+                <th class="text-left px-4 py-2 text-gray-400 uppercase tracking-wide font-semibold">Start</th>
+                <th class="text-left px-4 py-2 text-gray-400 uppercase tracking-wide font-semibold">End</th>
+                <th class="text-right px-4 py-2 text-gray-400 uppercase tracking-wide font-semibold">Duration</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              {% for row in group.breaks %}
+                <tr class="hover:bg-white transition-colors">
+                  <td class="px-8 py-2">
+                    {% if row.break_type == 'lunch' %}
+                      <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700
+                                   text-xs font-semibold px-2 py-0.5 rounded-full">
+                        🍽️ Lunch
+                      </span>
+                    {% else %}
+                      <span class="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700
+                                   text-xs font-semibold px-2 py-0.5 rounded-full">
+                        ☕ Break
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="px-4 py-2 font-mono text-gray-600">
+                    {{ row.break_start | replace("T", " ") }}
+                  </td>
+                  <td class="px-4 py-2 font-mono text-gray-600">
+                    {{ row.break_end | replace("T", " ") }}
+                  </td>
+                  <td class="px-4 py-2 text-right">
+                    {% set mins = row.duration_mins | int %}
+                    <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                      {% if mins > 20 %}bg-red-100 text-red-700
+                      {% elif mins > 15 %}bg-yellow-100 text-yellow-700
+                      {% else %}bg-green-50 text-green-700{% endif %}">
+                      {{ mins }} min
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+      </details>
+    {% endfor %}
+  </div>
+
+{% else %}
+  <p class="px-5 py-8 text-center text-gray-400 text-sm">
+    No completed breaks yet — start sending folks on break! ☕
+  </p>
+{% endif %}

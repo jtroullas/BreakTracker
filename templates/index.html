@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block content %}
+
+  <!-- ── Stats bar ──────────────────────────────────────────────────── -->
+  <div
+    id="stats-bar"
+    hx-get="/partials/stats"
+    hx-trigger="every 60s, breakChanged from:body"
+    hx-swap="innerHTML"
+  >
+    {% include "partials/stats_bar.html" %}
+  </div>
+
+  <!-- ── Import panel ───────────────────────────────────────────────── -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+
+    <!-- PDF Upload (primary) -->
+    <div class="px-5 py-4 border-b border-gray-100">
+      <h2 class="font-semibold text-gray-700 mb-3 flex items-center gap-2">
+        <span>📄</span> Import Schedule PDF
+      </h2>
+
+      <form
+        id="pdf-upload-form"
+        hx-post="/associates/import-pdf"
+        hx-target="#import-result-area"
+        hx-swap="innerHTML"
+        hx-encoding="multipart/form-data"
+        hx-indicator="#pdf-spinner"
+        hx-on::after-request="if(event.detail.successful) window.location.reload()"
+        class="flex flex-col sm:flex-row gap-3 items-start"
+      >
+        <label
+          for="pdf-file"
+          class="flex-1 flex items-center gap-3 border-2 border-dashed border-gray-300
+                 hover:border-wblue rounded-lg px-4 py-3 cursor-pointer transition-colors
+                 text-sm text-gray-500 hover:text-wblue group"
+        >
+          <svg class="h-5 w-5 flex-shrink-0 group-hover:text-wblue" fill="none"
+               viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1
+                     m-4-8l-4-4m0 0L8 8m4-4v12"/>
+          </svg>
+          <span id="file-label">Click to choose schedule PDF…</span>
+          <input
+            id="pdf-file" name="file" type="file" accept=".pdf"
+            class="sr-only"
+            onchange="document.getElementById('file-label').textContent =
+                        this.files[0]?.name || 'Click to choose schedule PDF…'"
+            required
+          />
+        </label>
+
+        <button
+          type="submit"
+          class="bg-wblue hover:bg-blue-700 text-white font-semibold
+                 rounded-lg px-5 py-3 text-sm transition-colors flex items-center gap-2"
+        >
+          <span id="pdf-spinner" class="htmx-indicator">⏳</span>
+          Import
+        </button>
+      </form>
+
+      <div id="import-result-area" class="mt-3"></div>
+    </div>
+
+    <!-- Manual add -->
+    <details>
+      <summary class="px-5 py-3 cursor-pointer text-sm text-gray-500
+                      hover:bg-gray-50 select-none flex items-center gap-2 transition-colors">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 4v16m8-8H4"/>
+        </svg>
+        Or add a single associate manually
+      </summary>
+      <form
+        class="px-5 pb-4 pt-2 flex gap-3"
+        hx-post="/associates"
+        hx-target="#associate-grid"
+        hx-swap="afterbegin"
+        hx-on::after-request="this.reset()"
+      >
+        <input
+          name="name" required
+          class="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm
+                 focus:outline-none focus:ring-2 focus:ring-wblue"
+          placeholder="Full name, e.g. Alex Rivera"
+        />
+        <button type="submit"
+                class="bg-wblue hover:bg-blue-700 text-white font-semibold
+                       rounded-lg px-4 py-2 text-sm transition-colors">
+          Add
+        </button>
+      </form>
+    </details>
+
+    <!-- Debug PDF -->
+    <details>
+      <summary class="px-5 py-3 cursor-pointer text-sm text-gray-400
+                      hover:bg-gray-50 select-none flex items-center gap-2
+                      transition-colors border-t border-gray-100">
+        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586
+                   a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19
+                   a2 2 0 01-2 2z"/>
+        </svg>
+        PDF not working? Debug what was extracted
+      </summary>
+      <div class="px-5 pb-4 pt-2">
+        <form
+          hx-post="/associates/debug-pdf"
+          hx-target="#debug-result"
+          hx-swap="innerHTML"
+          hx-encoding="multipart/form-data"
+          class="flex gap-3 mb-3"
+        >
+          <input type="file" name="file" accept=".pdf" required
+                 class="flex-1 text-sm text-gray-500 file:mr-3 file:py-1.5 file:px-3
+                        file:rounded-lg file:border-0 file:bg-gray-100
+                        file:text-gray-700 file:text-sm file:cursor-pointer
+                        hover:file:bg-gray-200" />
+          <button type="submit"
+                  class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold
+                         rounded-lg px-4 py-2 text-sm transition-colors">
+            Inspect
+          </button>
+        </form>
+        <div id="debug-result" class="text-xs text-gray-600"></div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ── Search bar ─────────────────────────────────────────────────── -->
+  <div class="flex items-center gap-2">
+    <div class="relative flex-1">
+      <!-- magnifier icon -->
+      <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400
+                  pointer-events-none"
+           fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+      </svg>
+      <input
+        id="search-input"
+        type="search"
+        placeholder="Search associates…"
+        autocomplete="off"
+        class="w-full bg-white border border-gray-200 rounded-xl
+               pl-10 pr-4 py-2.5 text-sm shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-wblue focus:border-wblue
+               placeholder-gray-400"
+      />
+    </div>
+    <!-- clear button — JS shows/hides it -->
+    <button
+      id="search-clear"
+      onclick="document.getElementById('search-input').value=''; runSearch();"
+      class="hidden text-gray-400 hover:text-gray-600 bg-white border border-gray-200
+             rounded-xl px-3 py-2.5 text-sm shadow-sm transition-colors"
+      title="Clear search"
+    >✕</button>
+  </div>
+
+  <!-- ── Called Out / Absent panel ───────────────────────────────────── -->
+  <div
+    id="called-out-section"
+    hx-get="/partials/called-out"
+    hx-trigger="load"
+    hx-swap="innerHTML"
+  >
+    {% include "partials/called_out_section.html" %}
+  </div>
+
+  <!-- ── On Break / Lunch panel ───────────────────────────────────── -->
+  <div
+    id="on-break-section"
+    hx-get="/partials/on-break"
+    hx-trigger="breakChanged from:body"
+    hx-swap="innerHTML"
+  >
+    {% include "partials/on_break_section.html" %}
+  </div>
+
+  <!-- ── Working associates grid ────────────────────────────────────── -->
+  <section>
+    <div class="flex items-center gap-3 mb-3">
+      <h2 class="text-base font-bold text-gray-500 uppercase tracking-wide">
+        Working
+      </h2>
+      <span id="working-count"
+            class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2
+                   rounded-full bg-green-100 text-green-700 text-xs font-bold">
+        {{ working | length }}
+      </span>
+    </div>
+    <div
+      id="associate-grid"
+      class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+      hx-get="/partials/grid"
+      hx-trigger="breakChanged from:body"
+      hx-swap="innerHTML"
+    >
+      {% for associate in working %}
+        {% include "partials/associate_card.html" %}
+      {% endfor %}
+    </div>
+  </section>
+
+  <!-- ── Break log ─────────────────────────────────────────────────────── -->
+  <section>
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="text-base font-bold text-gray-500 uppercase tracking-wide">
+        Break History
+      </h2>
+      <button
+        class="text-xs text-wblue hover:underline"
+        hx-get="/partials/log"
+        hx-target="#break-log-wrap"
+        hx-swap="innerHTML"
+      >
+        ↺ Refresh
+      </button>
+    </div>
+    <div
+      id="break-log-wrap"
+      class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+      hx-get="/partials/log"
+      hx-trigger="breakChanged from:body"
+      hx-swap="innerHTML"
+    >
+      {% include "partials/break_log.html" %}
+    </div>
+  </section>
+
+
+{% endblock %}

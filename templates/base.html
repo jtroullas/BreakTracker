@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Break Tracker — Team Leader Dashboard</title>
+
+  <!-- Tailwind -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            wblue:  { DEFAULT: "#0053e2", hover: "#0046c0", pressed: "#0034a0" },
+            wspark: { DEFAULT: "#ffc220", text: "#995213", bg: "#fffbeb" },
+            wred:   { DEFAULT: "#ea1100" },
+            wgreen: { DEFAULT: "#2a8703" },
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- HTMX -->
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+
+  <style>
+    [x-cloak] { display: none !important; }
+    .card-flash { animation: flash 0.4s ease-out; }
+    @keyframes flash {
+      0%   { background-color: #dbeafe; }
+      100% { background-color: white;   }
+    }
+    /* HTMX loading indicator */
+    .htmx-indicator { opacity: 0; transition: opacity 200ms; }
+    .htmx-request .htmx-indicator,
+    .htmx-request.htmx-indicator  { opacity: 1; }
+
+    /* Pulsing red border when a break is overdue (>= 15 min) */
+    @keyframes overdue-pulse {
+      0%, 100% { box-shadow: 0 0 0 0   rgba(239,68,68,0.5);  border-color: #fca5a5; }
+      50%       { box-shadow: 0 0 0 6px rgba(239,68,68,0);    border-color: #ef4444; }
+    }
+    .break-overdue {
+      border-color: #ef4444 !important;
+      animation: overdue-pulse 1.8s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+
+  <!-- ── Header ──────────────────────────────────────────────── -->
+  <header class="bg-wblue text-white shadow-md">
+    <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Walmart spark icon (inline SVG) -->
+        <svg class="h-8 w-8 text-wspark" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l1.5 4.5H18l-3.75 2.73 1.43 4.4L12 11.1l-3.68 2.53
+                   1.43-4.4L6 6.5h4.5L12 2z"/>
+        </svg>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Break Tracker</h1>
+          <p class="text-blue-200 text-xs">Team Leader Dashboard</p>
+        </div>
+
+        <!-- Manager Dashboard link -->
+        <button
+          onclick="openPinModal()"
+          class="ml-4 flex items-center gap-1.5 bg-white/10 hover:bg-white/20
+                 text-white text-xs font-semibold px-3 py-2 rounded-lg
+                 border border-white/20 transition-colors"
+        >
+          📊 Manager Dashboard
+        </button>
+      </div>
+      <span class="text-xs text-blue-200 hidden sm:block">
+        Auto-refreshes every 60 s
+      </span>
+
+      <!-- Clear All / New Day button -->
+      <button
+        class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20
+               text-white text-xs font-semibold px-3 py-2 rounded-lg
+               border border-white/20 transition-colors"
+        hx-post="/reset"
+        hx-swap="none"
+        hx-confirm="Start a new day? This will clear all associates, breaks, and history."
+        hx-on::after-request="window.location.reload()"
+      >
+        🗑️ New Day
+      </button>
+    </div>
+  </header>
+
+  <!-- ── PIN modal ──────────────────────────────────────────────── -->
+  <div
+    id="pin-overlay"
+    class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4"
+    onclick="if(event.target===this) closePinModal()"
+  >
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
+      <p class="text-3xl mb-2">🔒</p>
+      <h2 class="text-lg font-extrabold text-gray-800 mb-1">Manager Access</h2>
+      <p class="text-sm text-gray-400 mb-5">Enter your manager PIN to continue.</p>
+
+      <input
+        id="pin-input"
+        type="password"
+        inputmode="numeric"
+        maxlength="10"
+        placeholder="••••"
+        class="w-full border border-gray-300 rounded-lg px-4 py-3 text-center
+               text-2xl font-mono tracking-widest
+               focus:outline-none focus:ring-2 focus:ring-wblue mb-2"
+        onkeydown="if(event.key==='Enter') checkPin()"
+      />
+      <p id="pin-error" class="text-red-500 text-xs mb-3 hidden">Incorrect PIN. Try again.</p>
+
+      <div class="flex gap-2">
+        <button
+          onclick="closePinModal()"
+          class="flex-1 border border-gray-200 text-gray-500 font-semibold
+                 rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors text-sm"
+        >Cancel</button>
+        <button
+          onclick="checkPin()"
+          id="pin-submit-btn"
+          class="flex-1 bg-wblue hover:bg-blue-700 text-white font-semibold
+                 rounded-lg px-4 py-2 transition-colors text-sm"
+        >Enter</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Associate detail modal ─────────────────────────────────────── -->
+  <div
+    id="detail-overlay"
+    class="fixed inset-0 bg-black/50 z-50 hidden items-center justify-center p-4"
+    onclick="if(event.target===this) closeModal()"
+  >
+    <div
+      id="detail-panel"
+      class="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh]
+             overflow-y-auto p-6 relative"
+    >
+      <p class="text-gray-400 text-sm text-center py-8">Loading…</p>
+    </div>
+  </div>
+
+  <!-- ── Main ────────────────────────────────────────────────────────── -->
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ── Timer engine ────────────────────────────────────────────────── -->
+  <script>
+    /**
+     * Finds every element with data-break-start and ticks a live timer.
+     * At 15 min: card gets a pulsing red border + overdue-alert banner shows.
+     * At 20 min: timer text turns red + bold.
+     */
+    const WARN_MINS  = 15;   // standard Walmart break length
+    const CRIT_MINS  = 20;   // 🚨 overdue
+
+    function fmtDuration(totalSeconds) {
+      const m = Math.floor(totalSeconds / 60);
+      const s = totalSeconds % 60;
+      return `${m}m ${String(s).padStart(2, "0")}s`;
+    }
+
+    function tickTimers() {
+      const now = Date.now();
+      let anyOverdue = false;
+
+      document.querySelectorAll("[data-break-start]").forEach(el => {
+        const startMs  = new Date(el.dataset.breakStart).getTime();
+        const elapsed  = Math.floor((now - startMs) / 1000);
+        const mins     = elapsed / 60;
+
+        const timerEl  = el.querySelector(".break-timer");
+        const badgeEl  = el.querySelector(".break-badge");
+        if (!timerEl) return;
+
+        timerEl.textContent = fmtDuration(elapsed);
+
+        if (mins >= WARN_MINS) anyOverdue = true;
+
+        // ≥ 15 min: pulsing red border on the whole card
+        if (mins >= WARN_MINS) {
+          el.classList.add("break-overdue");
+        } else {
+          el.classList.remove("break-overdue");
+        }
+
+        // ≥ 20 min: badge goes red + timer text bold red
+        if (mins >= CRIT_MINS) {
+          badgeEl?.classList.replace("bg-yellow-100", "bg-red-100");
+          badgeEl?.classList.replace("text-yellow-700", "text-red-700");
+          timerEl.classList.add("text-red-600", "font-bold");
+          timerEl.classList.remove("text-yellow-600");
+        } else if (mins >= WARN_MINS) {
+          timerEl.classList.add("text-yellow-600");
+          timerEl.classList.remove("text-red-600", "font-bold");
+        }
+      });
+
+      // Show / hide the overdue alert banner
+      const alertEl = document.getElementById("overdue-alert");
+      if (alertEl) {
+        alertEl.classList.toggle("hidden",  !anyOverdue);
+        alertEl.classList.toggle("inline-flex", anyOverdue);
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      tickTimers();
+      setInterval(tickTimers, 1000);
+    });
+    // Re-run after any HTMX swap (new cards may appear)
+    document.addEventListener("htmx:afterSwap", () => {
+      tickTimers();
+      checkOffClock();
+      runSearch();      // keep filter active after section refreshes
+    });
+
+    // ── Off-clock checker ─────────────────────────────────────────────
+    /**
+     * Compares the current time (minutes since midnight) against each
+     * card's data-shift-end attribute and toggles the off-clock badge.
+     * Runs on load, every 60 s, and after every HTMX swap.
+     */
+    function checkOffClock() {
+      const now = new Date();
+      const currentMins = now.getHours() * 60 + now.getMinutes();
+
+      document.querySelectorAll("[data-shift-end]").forEach(card => {
+        const endMins = parseInt(card.dataset.shiftEnd, 10);
+        if (endMins >= 9999) return;          // no parseable end time
+
+        const badge = card.querySelector(".off-clock-badge");
+        if (!badge) return;
+
+        if (currentMins >= endMins) {
+          badge.classList.remove("hidden");
+        } else {
+          badge.classList.add("hidden");
+        }
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      checkOffClock();
+      setInterval(checkOffClock, 60_000);   // re-check every minute
+    });
+    document.addEventListener("htmx:afterSwap", checkOffClock);
+
+    // ── Search ─────────────────────────────────────────────────────────────
+    /**
+     * Instantly filters associate cards in both grids by name.
+     * Re-applied after every HTMX swap so newly rendered cards obey
+     * whatever the user has already typed.
+     */
+    function runSearch() {
+      const input   = document.getElementById("search-input");
+      const clearBtn = document.getElementById("search-clear");
+      if (!input) return;
+
+      const q = input.value.trim().toLowerCase();
+
+      // Show / hide clear button
+      if (clearBtn) clearBtn.classList.toggle("hidden", !q);
+
+      // Filter every associate card
+      document.querySelectorAll("[data-name]").forEach(card => {
+        const match = !q || card.dataset.name.includes(q);
+        card.style.display = match ? "" : "none";
+      });
+
+      // Update the working-count badge to reflect visible cards
+      const countEl = document.getElementById("working-count");
+      if (countEl) {
+        const visible = document.querySelectorAll(
+          "#associate-grid [data-name]:not([style*='none'])"
+        ).length;
+        countEl.textContent = visible;
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const input = document.getElementById("search-input");
+      input?.addEventListener("input", runSearch);
+    });
+
+    // ── PIN modal ───────────────────────────────────────────────────
+    function openPinModal() {
+      const overlay = document.getElementById("pin-overlay");
+      const input   = document.getElementById("pin-input");
+      const err     = document.getElementById("pin-error");
+      overlay.classList.remove("hidden");
+      overlay.classList.add("flex");
+      input.value = "";
+      err.classList.add("hidden");
+      setTimeout(() => input.focus(), 50);
+    }
+
+    function closePinModal() {
+      document.getElementById("pin-overlay").classList.add("hidden");
+      document.getElementById("pin-overlay").classList.remove("flex");
+    }
+
+    function checkPin() {
+      const input = document.getElementById("pin-input");
+      const err   = document.getElementById("pin-error");
+      const btn   = document.getElementById("pin-submit-btn");
+
+      btn.disabled = true;
+      btn.textContent = "Checking…";
+
+      fetch("/manager/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "pin=" + encodeURIComponent(input.value),
+      })
+        .then(r => {
+          if (r.ok) {
+            closePinModal();
+            window.location.href = "/manager";
+          } else {
+            err.classList.remove("hidden");
+            input.value = "";
+            input.focus();
+          }
+        })
+        .catch(() => {
+          err.textContent = "Network error. Try again.";
+          err.classList.remove("hidden");
+        })
+        .finally(() => {
+          btn.disabled = false;
+          btn.textContent = "Enter";
+        });
+    }
+
+    // ── Associate detail modal ───────────────────────────────────────────
+    function openModal(associateId) {
+      const overlay = document.getElementById("detail-overlay");
+      const panel   = document.getElementById("detail-panel");
+      if (!overlay || !panel) return;
+
+      // Show overlay
+      overlay.classList.remove("hidden");
+      overlay.classList.add("flex");
+      panel.innerHTML = "<p class='text-gray-400 text-sm text-center py-8'>Loading…</p>";
+
+      // Fetch detail partial
+      fetch(`/associates/${associateId}/detail`)
+        .then(r => r.text())
+        .then(html => {
+          panel.innerHTML = html;
+          htmx.process(panel);   // register hx-* attrs on dynamically loaded content
+        })
+        .catch(() => {
+          panel.innerHTML = "<p class='text-red-500 text-sm p-4'>Could not load details.</p>";
+        });
+    }
+
+    function closeModal() {
+      const overlay = document.getElementById("detail-overlay");
+      if (!overlay) return;
+      overlay.classList.add("hidden");
+      overlay.classList.remove("flex");
+    }
+
+    // Close on Escape key
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape") closeModal();
+    });
+  </script>
+
+</body>
+</html>

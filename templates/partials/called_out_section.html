@@ -1,0 +1,86 @@
+{#
+  partials/called_out_section.html
+  Grey panel showing associates who called out.
+  Disappears entirely when nobody is marked absent.
+#}
+
+{% if called_out %}
+<div class="rounded-2xl border-2 border-gray-300 bg-gray-50 overflow-hidden shadow-sm">
+
+  <!-- Panel header -->
+  <div class="px-5 py-3 bg-gray-100 border-b-2 border-gray-200
+              flex flex-wrap items-center gap-3">
+
+    <span class="text-lg">📵</span>
+
+    <h2 class="font-extrabold text-gray-600 uppercase tracking-wide text-sm">
+      Called Out / Absent
+    </h2>
+
+    <span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2
+                 rounded-full bg-gray-300 text-gray-700 text-xs font-bold">
+      {{ called_out | length }}
+    </span>
+  </div>
+
+  <!-- Cards -->
+  <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for associate in called_out %}
+      <div
+        id="card-{{ associate.id }}"
+        data-name="{{ associate.name | lower }}"
+        class="bg-white rounded-xl border border-gray-200 p-4
+               flex flex-col gap-3 opacity-60 relative"
+      >
+        <!-- Remove button -->
+        <button
+          class="absolute top-3 right-3 text-gray-300 hover:text-red-400
+                 transition-colors text-lg leading-none"
+          title="Remove associate"
+          hx-delete="/associates/{{ associate.id }}"
+          hx-swap="none"
+          hx-confirm="Remove {{ associate.name }} from the roster?"
+          hx-on::after-request="window.location.reload()"
+        >✕</button>
+
+        <!-- Name + shift -->
+        <div class="pr-6">
+          <p class="font-bold text-gray-500 text-base leading-tight line-through">
+            {{ associate.name }}
+          </p>
+          {% if associate.shift %}
+            <span style="display:inline-flex;align-items:center;gap:4px;margin-top:4px;
+                         font-size:0.7rem;font-family:monospace;font-weight:600;
+                         background:#f3f4f6;color:#6b7280;
+                         padding:1px 8px;border-radius:9999px;">
+              🕐 {{ associate.shift }}
+            </span>
+          {% endif %}
+        </div>
+
+        <!-- Called-out badge -->
+        <div>
+          <span class="inline-flex items-center gap-1.5 bg-gray-200 text-gray-500
+                       text-xs font-semibold px-2.5 py-1 rounded-full">
+            <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+            Called Out
+          </span>
+        </div>
+
+        <!-- Mark Present button -->
+        <button
+          class="w-full bg-white hover:bg-green-50 border border-gray-300
+                 hover:border-green-400 text-gray-600 hover:text-green-700
+                 text-sm font-semibold rounded-lg px-4 py-2 transition-colors"
+          hx-post="/associates/{{ associate.id }}/callout/clear"
+          hx-swap="none"
+          hx-on::after-request="window.location.reload()"
+        >
+          ✅ Mark as Present
+        </button>
+      </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endif %}

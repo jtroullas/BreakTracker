@@ -1,0 +1,152 @@
+{#
+  partials/associate_detail.html
+  Loaded into the modal when a team leader clicks an associate tile.
+  Shows today's breaks and suggested break times.
+#}
+
+<!-- Header -->
+<div class="flex items-start justify-between mb-4">
+  <div>
+    <h2 class="text-xl font-bold text-gray-800">{{ associate.name }}</h2>
+    {% if associate.shift %}
+      <p class="text-sm font-mono text-blue-600 mt-0.5">🕐 {{ associate.shift }}</p>
+    {% endif %}
+  </div>
+  <button
+    onclick="closeModal()"
+    class="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-4 flex-shrink-0"
+    aria-label="Close"
+  >&times;</button>
+</div>
+
+<!-- Suggested breaks -->
+<div class="mb-5">
+  <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+    📅 Suggested 15-min Breaks
+  </h3>
+  {% if suggestions %}
+    <div class="flex flex-wrap gap-2">
+      {% for t in suggestions %}
+        <span class="inline-flex items-center gap-1.5
+                     bg-blue-50 text-blue-700 font-semibold text-sm
+                     px-3 py-1 rounded-full border border-blue-100">
+          ⏱ {{ t }}
+        </span>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="text-sm text-gray-400 italic">No shift on file — upload a schedule PDF to get suggestions.</p>
+  {% endif %}
+</div>
+
+<hr class="border-gray-100 my-4"/>
+
+<!-- Notes -->
+<div>
+  <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+    📝 Notes
+  </h3>
+
+  <form
+    hx-post="/associates/{{ associate.id }}/note"
+    hx-target="#note-save-status"
+    hx-swap="innerHTML"
+    class="space-y-2"
+  >
+    <textarea
+      name="note"
+      rows="3"
+      placeholder="Add notes about this associate…"
+      class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm
+             text-gray-700 placeholder-gray-300 resize-none
+             focus:outline-none focus:ring-2 focus:ring-wblue focus:border-wblue"
+    >{{ associate.notes or '' }}</textarea>
+
+    <div class="flex items-center justify-between">
+      <span id="note-save-status" class="text-xs text-gray-400"></span>
+      <button
+        type="submit"
+        class="bg-wblue hover:bg-blue-700 text-white text-xs font-semibold
+               rounded-lg px-3 py-1.5 transition-colors"
+      >
+        Save Note
+      </button>
+    </div>
+  </form>
+</div>
+
+<hr class="border-gray-100 mb-4"/>
+
+<!-- Today's breaks -->
+<div>
+  <h3 class="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">
+    🗓 Today's Activity
+  </h3>
+
+  {% if breaks_today %}
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="border-b border-gray-100">
+          <th class="text-left py-2 text-gray-400 font-semibold text-xs uppercase">Type</th>
+          <th class="text-left py-2 text-gray-400 font-semibold text-xs uppercase">Start</th>
+          <th class="text-left py-2 text-gray-400 font-semibold text-xs uppercase">End</th>
+          <th class="text-right py-2 text-gray-400 font-semibold text-xs uppercase">Duration</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-50">
+        {% for b in breaks_today %}
+          <tr>
+            <td class="py-2">
+              {% if b.break_type == 'lunch' %}
+                <span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700
+                             text-xs font-semibold px-2 py-0.5 rounded-full">
+                  🍽️ Lunch
+                </span>
+              {% else %}
+                <span class="inline-flex items-center gap-1 bg-yellow-100 text-yellow-700
+                             text-xs font-semibold px-2 py-0.5 rounded-full">
+                  ☕ Break
+                </span>
+              {% endif %}
+            </td>
+            <td class="py-2 font-mono text-xs text-gray-600">
+              {{ b.break_start[11:16] if b.break_start else '—' }}
+            </td>
+            <td class="py-2 font-mono text-xs text-gray-600">
+              {{ b.break_end[11:16] if b.break_end else
+                 '<span class="text-yellow-600 font-semibold">On break…</span>' | safe }}
+            </td>
+            <td class="py-2 text-right">
+              {% if b.duration_mins is not none %}
+                {% set m = b.duration_mins | int %}
+                <span class="inline-block px-2 py-0.5 rounded-full text-xs font-semibold
+                  {% if m > 20 %}bg-red-100 text-red-700
+                  {% elif m > 15 %}bg-yellow-100 text-yellow-700
+                  {% else %}bg-green-50 text-green-700{% endif %}">
+                  {{ m }} min
+                </span>
+              {% else %}
+                <span class="text-gray-400 text-xs">—</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <!-- Daily total -->
+    {% set completed = breaks_today | selectattr('duration_mins') | list %}
+    {% if completed %}
+      {% set total = completed | map(attribute='duration_mins') | map('int') | sum %}
+      <p class="mt-3 text-right text-xs text-gray-400">
+        Total break time today:
+        <span class="font-semibold text-gray-600">{{ total }} min</span>
+      </p>
+    {% endif %}
+
+  {% else %}
+    <p class="text-sm text-gray-400 italic text-center py-6">
+      No breaks taken yet today. ☀️
+    </p>
+  {% endif %}
+</div>

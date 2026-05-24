@@ -1,0 +1,47 @@
+{#
+  partials/import_result.html
+  Shown inside #import-result-area after a PDF upload attempt.
+  Grid refresh is handled via HX-Trigger: gridRefresh on the backend —
+  the associate-grid div listens for that event and re-fetches /partials/grid.
+  No OOB swap needed here. Simple is good.
+#}
+
+{% if error %}
+  <div class="flex items-start gap-3 bg-red-50 border border-red-200
+              text-red-800 rounded-xl px-4 py-3 text-sm">
+    <span class="text-xl leading-none">⚠️</span>
+    <span>{{ error }}</span>
+  </div>
+
+{% else %}
+  <div class="flex items-start gap-3 bg-green-50 border border-green-200
+              text-wgreen rounded-xl px-4 py-3 text-sm">
+    <span class="text-xl leading-none">✅</span>
+    <div>
+      <p class="font-semibold">
+        Schedule imported!
+        {{ result.added | length }} added{% if result.updated %}, {{ result.updated | length }} shift{% if result.updated | length != 1 %}s{% endif %} updated{% endif %}.
+      </p>
+
+      {% if result.added %}
+        <p class="mt-1 text-xs text-gray-500">
+          Added: {{ result.added | join(", ") }}
+        </p>
+      {% endif %}
+
+      {% if result.updated %}
+        <p class="mt-1 text-xs text-gray-500">
+          Shift updated: {{ result.updated | join(", ") }}
+        </p>
+      {% endif %}
+
+      {% if result.added | length == 0 and result.skipped | length == 0 %}
+        <p class="mt-1 text-xs text-gray-500">
+          No recognisable names were found in the PDF.
+          Try the <strong>debug upload</strong> below to see what was extracted,
+          or add associates manually.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+{% endif %}

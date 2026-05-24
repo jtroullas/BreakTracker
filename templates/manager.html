@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Manager Dashboard — Break Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12/dist/htmx.min.js"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            wblue:  "#0053e2",
+            wspark: "#ffc220",
+            wgreen: "#2a8703",
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    /* ── Print styles ─────────────────────────────────────── */
+    .print-only { display: none; }
+
+    @media print {
+      .no-print   { display: none !important; }
+      .print-only { display: block !important; }
+      .print-col  { display: block !important; width: 100% !important; }
+      body        { background: white !important; font-size: 11pt; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans text-gray-800">
+
+  <!-- ── Header ──────────────────────────────────────────────────────── -->
+  <header class="bg-wblue text-white shadow-md no-print">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <svg class="h-8 w-8 text-yellow-300" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2l1.5 4.5H18l-3.75 2.73 1.43 4.4L12 11.1l-3.68 2.53
+                   1.43-4.4L6 6.5h4.5L12 2z"/>
+        </svg>
+        <div>
+          <h1 class="text-xl font-bold tracking-tight">Manager Dashboard</h1>
+          <p class="text-blue-200 text-xs">Break compliance report · {{ report.date }}</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          onclick="openChangePinModal()"
+          class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20
+                 text-white text-xs font-semibold px-3 py-2 rounded-lg
+                 border border-white/20 transition-colors"
+        >🔑 Change PIN</button>
+        <button
+          onclick="window.print()"
+          class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20
+                 text-white text-xs font-semibold px-3 py-2 rounded-lg
+                 border border-white/20 transition-colors"
+        >🖨️ Export / Print</button>
+        <a
+          href="/"
+          class="flex items-center gap-1.5 bg-white/10 hover:bg-white/20
+                 text-white text-xs font-semibold px-3 py-2 rounded-lg
+                 border border-white/20 transition-colors"
+        >← Team View</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Print-only page title -->
+  <div class="print-only" style="padding:24px 24px 12px;border-bottom:1px solid #d1d5db;margin-bottom:16px;">
+    <h1 style="font-size:1.5rem;font-weight:800;margin:0;">Break Compliance Report</h1>
+    <p style="font-size:0.875rem;color:#6b7280;margin:4px 0 0;">{{ report.date }}</p>
+  </div>
+
+  <main class="max-w-7xl mx-auto px-4 py-6">
+
+    <!-- ── Summary pills (screen only) ────────────────────────────────── -->
+    <div class="grid grid-cols-3 gap-4 mb-6 no-print">
+      <div class="bg-white rounded-xl border border-red-100 shadow-sm p-4 flex items-center gap-4">
+        <span class="text-3xl">⏱</span>
+        <div>
+          <p class="text-2xl font-extrabold text-red-600">{{ report.overruns | length }}</p>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wide">Break Overruns</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-yellow-100 shadow-sm p-4 flex items-center gap-4">
+        <span class="text-3xl">🚷</span>
+        <div>
+          <p class="text-2xl font-extrabold text-yellow-600">{{ report.no_breaks | length }}</p>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wide">Missed Breaks</p>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl border border-blue-100 shadow-sm p-4 flex items-center gap-4">
+        <span class="text-3xl">📝</span>
+        <div>
+          <p class="text-2xl font-extrabold text-blue-600">{{ report.notes | length }}</p>
+          <p class="text-xs text-gray-400 font-semibold uppercase tracking-wide">Associate Notes</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Two-column layout ───────────────────────────────────────────── -->
+    <div class="flex flex-col lg:flex-row gap-6 print-col">
+
+      <!-- ── LEFT: Notes panel ─────────────────────────────────────────── -->
+      <aside class="w-full lg:w-72 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-lg">📝</span>
+          <h2 class="text-sm font-extrabold text-gray-700 uppercase tracking-wide">
+            Associate Notes
+          </h2>
+        </div>
+
+        {% if report.notes %}
+          <div class="space-y-3">
+            {% for n in report.notes %}
+              <div class="bg-white rounded-xl border border-blue-100 shadow-sm p-4">
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                  <p class="font-bold text-gray-800 text-sm leading-tight">{{ n.name }}</p>
+                  {% if n.shift %}
+                    <span class="flex-shrink-0 text-xs font-mono font-semibold
+                                 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                      {{ n.shift }}
+                    </span>
+                  {% endif %}
+                </div>
+                <p class="text-sm text-gray-600 leading-snug whitespace-pre-wrap">{{ n.notes }}</p>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm
+                      px-4 py-10 text-center">
+            <p class="text-2xl mb-2">🗒️</p>
+            <p class="text-xs text-gray-400 font-semibold">No notes recorded today.</p>
+          </div>
+        {% endif %}
+      </aside>
+
+      <!-- ── RIGHT: Compliance tables ──────────────────────────────────── -->
+      <div class="flex-1 space-y-8 min-w-0">
+
+        <!-- Break Overruns -->
+        <section>
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-lg">⏱</span>
+            <h2 class="text-sm font-extrabold text-gray-700 uppercase tracking-wide">
+              Break Overruns
+              <span class="text-red-400 normal-case font-semibold">(over 15 min)</span>
+            </h2>
+          </div>
+
+          {% if report.overruns %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-red-50 border-b border-red-100">
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">Associate</th>
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">Shift</th>
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">Start</th>
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">End</th>
+                    <th class="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">Duration</th>
+                    <th class="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide text-red-400">Over By</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  {% for row in report.overruns %}
+                    {% set over = (row.duration_mins | int) - 15 %}
+                    <tr class="hover:bg-red-50/40 transition-colors">
+                      <td class="px-4 py-3 font-semibold text-gray-800">{{ row.name }}</td>
+                      <td class="px-4 py-3 font-mono text-xs text-blue-600">{{ row.shift or '—' }}</td>
+                      <td class="px-4 py-3 font-mono text-xs text-gray-600">
+                        {{ row.break_start[11:16] if row.break_start else '—' }}
+                      </td>
+                      <td class="px-4 py-3 font-mono text-xs text-gray-600">
+                        {{ row.break_end[11:16] if row.break_end else '—' }}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold
+                                     bg-red-100 text-red-700">
+                          {{ row.duration_mins | int }} min
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold
+                                     bg-red-600 text-white">
+                          +{{ over }} min
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-6 py-10 text-center">
+              <p class="text-2xl mb-2">✅</p>
+              <p class="text-sm text-gray-400 font-semibold">No overruns — everyone kept it tight today.</p>
+            </div>
+          {% endif %}
+        </section>
+
+        <!-- Missed Breaks -->
+        <section class="page-break">
+          <div class="flex items-center gap-2 mb-3">
+            <span class="text-lg">🚷</span>
+            <h2 class="text-sm font-extrabold text-gray-700 uppercase tracking-wide">
+              Missed Breaks
+              <span class="text-yellow-500 normal-case font-semibold">(took zero 15-min breaks)</span>
+            </h2>
+          </div>
+
+          {% if report.no_breaks %}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <table class="w-full text-sm">
+                <thead>
+                  <tr class="bg-yellow-50 border-b border-yellow-100">
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-yellow-500">Associate</th>
+                    <th class="text-left px-4 py-3 text-xs font-bold uppercase tracking-wide text-yellow-500">Shift</th>
+                    <th class="text-right px-4 py-3 text-xs font-bold uppercase tracking-wide text-yellow-500">Breaks Owed</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-50">
+                  {% for assoc in report.no_breaks %}
+                    <tr class="hover:bg-yellow-50/40 transition-colors">
+                      <td class="px-4 py-3 font-semibold text-gray-800">{{ assoc.name }}</td>
+                      <td class="px-4 py-3 font-mono text-xs text-blue-600">{{ assoc.shift or '—' }}</td>
+                      <td class="px-4 py-3 text-right">
+                        {% set cnt = suggested_breaks(assoc.shift) | length %}
+                        <span class="inline-block px-2 py-0.5 rounded-full text-xs font-bold
+                                     bg-yellow-100 text-yellow-700">
+                          {{ cnt }} break{{ 's' if cnt != 1 }}
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm px-6 py-10 text-center">
+              <p class="text-2xl mb-2">🎉</p>
+              <p class="text-sm text-gray-400 font-semibold">All associates took their breaks today!</p>
+            </div>
+          {% endif %}
+        </section>
+
+      </div><!-- /compliance column -->
+
+      <!-- ── FAR RIGHT: Management Notes ─────────────────────────────── -->
+      <aside class="w-full lg:w-72 flex-shrink-0">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="text-lg">🔒</span>
+          <h2 class="text-sm font-extrabold text-gray-700 uppercase tracking-wide">
+            Management Notes
+          </h2>
+        </div>
+
+        <!-- Editable on screen -->
+        <form
+          hx-post="/manager/notes"
+          hx-target="#mgmt-save-status"
+          hx-swap="innerHTML"
+          class="space-y-2 no-print"
+        >
+          <textarea
+            name="note"
+            rows="14"
+            placeholder="Private manager notes — not visible to team leaders…"
+            class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm
+                   text-gray-700 placeholder-gray-300 resize-y
+                   focus:outline-none focus:ring-2 focus:ring-wblue focus:border-wblue"
+          >{{ report.mgmt_notes }}</textarea>
+          <div class="flex items-center justify-between">
+            <span id="mgmt-save-status" class="text-xs text-gray-400"></span>
+            <button
+              type="submit"
+              class="bg-wblue hover:bg-blue-700 text-white text-xs font-semibold
+                     rounded-lg px-3 py-1.5 transition-colors"
+            >Save Notes</button>
+          </div>
+        </form>
+
+        <!-- Print-only: plain text render -->
+        <div class="print-only bg-gray-50 rounded-xl border border-gray-200 p-4">
+          <p class="text-xs font-bold uppercase tracking-wide text-gray-400 mb-2">🔒 Management Notes</p>
+          {% if report.mgmt_notes %}
+            <p class="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{{ report.mgmt_notes }}</p>
+          {% else %}
+            <p class="text-xs text-gray-400 italic">No management notes recorded.</p>
+          {% endif %}
+        </div>
+      </aside>
+
+    </div><!-- /three-column -->
+
+    <!-- Print footer -->
+    <div class="print-only" style="text-align:center;font-size:0.75rem;color:#9ca3af;
+              padding-top:2rem;margin-top:2rem;border-top:1px solid #e5e7eb;">
+      Generated {{ report.date }} &middot; Break Tracker &middot; Walmart
+    </div>
+
+  </main>
+<!-- ── Change PIN modal ───────────────────────────────────────────── -->
+<div
+  id="change-pin-overlay"
+  class="fixed inset-0 bg-black/60 z-50 hidden items-center justify-center p-4 no-print"
+  onclick="if(event.target===this) closeChangePinModal()"
+>
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h2 class="text-lg font-extrabold text-gray-800">🔑 Change Manager PIN</h2>
+        <p class="text-xs text-gray-400 mt-0.5">Minimum 4 characters.</p>
+      </div>
+      <button onclick="closeChangePinModal()"
+              class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+    </div>
+
+    <form
+      hx-post="/manager/change-pin"
+      hx-target="#change-pin-status"
+      hx-swap="innerHTML"
+      class="space-y-3"
+    >
+      <div>
+        <label class="text-xs font-semibold text-gray-500 block mb-1">Current PIN</label>
+        <input type="password" name="current_pin" inputmode="numeric"
+               placeholder="••••"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      font-mono tracking-widest text-center
+                      focus:outline-none focus:ring-2 focus:ring-wblue"/>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 block mb-1">New PIN</label>
+        <input type="password" name="new_pin" inputmode="numeric"
+               placeholder="••••"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      font-mono tracking-widest text-center
+                      focus:outline-none focus:ring-2 focus:ring-wblue"/>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 block mb-1">Confirm New PIN</label>
+        <input type="password" name="confirm_pin" inputmode="numeric"
+               placeholder="••••"
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm
+                      font-mono tracking-widest text-center
+                      focus:outline-none focus:ring-2 focus:ring-wblue"/>
+      </div>
+
+      <div class="flex items-center justify-between pt-1">
+        <span id="change-pin-status" class="text-xs"></span>
+        <button type="submit"
+                class="bg-wblue hover:bg-blue-700 text-white text-sm font-semibold
+                       rounded-lg px-4 py-2 transition-colors">
+          Update PIN
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openChangePinModal() {
+    const overlay = document.getElementById("change-pin-overlay");
+    overlay.classList.remove("hidden");
+    overlay.classList.add("flex");
+    overlay.querySelector("input[name='current_pin']").focus();
+    document.getElementById("change-pin-status").innerHTML = "";
+  }
+  function closeChangePinModal() {
+    const overlay = document.getElementById("change-pin-overlay");
+    overlay.classList.add("hidden");
+    overlay.classList.remove("flex");
+  }
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeChangePinModal();
+  });
+</script>
+
+</body>
+</html>

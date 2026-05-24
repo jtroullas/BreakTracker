@@ -1,0 +1,44 @@
+{#
+  partials/on_break_section.html
+
+  Visually distinct amber panel — completely separate from the working grid.
+  Disappears entirely when nobody is on break.
+  Cards move here when sent on break, back to the working grid when checked in.
+#}
+
+{% if on_break %}
+<div class="rounded-2xl border-2 border-amber-300 bg-amber-50 overflow-hidden shadow-sm">
+
+  <!-- ── Panel header ─────────────────────────────────────────────── -->
+  <div class="px-5 py-3 bg-amber-100 border-b-2 border-amber-200
+              flex flex-wrap items-center gap-3">
+
+    <span class="text-lg">☕</span>
+
+    <h2 class="font-extrabold text-amber-900 uppercase tracking-wide text-sm">
+      On Break &amp; Lunch
+    </h2>
+
+    <!-- Live count badge -->
+    <span class="inline-flex items-center justify-center min-w-[1.5rem] h-6 px-2
+                 rounded-full bg-amber-300 text-amber-900 text-xs font-bold">
+      {{ on_break | length }}
+    </span>
+
+    <!-- Overdue alert — hidden by default, JS shows it at 15 min -->
+    <span id="overdue-alert"
+          class="hidden items-center gap-1.5 bg-red-500 text-white
+                 text-xs font-bold px-3 py-1 rounded-full">
+      🚨 Associate overdue — check them in!
+    </span>
+  </div>
+
+  <!-- ── Cards grid ────────────────────────────────────────────────── -->
+  <div class="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {% for associate in on_break %}
+      {% include "partials/associate_card.html" %}
+    {% endfor %}
+  </div>
+
+</div>
+{% endif %}

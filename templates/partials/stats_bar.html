@@ -1,0 +1,22 @@
+{#
+  partials/stats_bar.html
+  Used both in index.html and returned OOB from break endpoints.
+  Always wrap with id="stats-bar" at the call site.
+#}
+<div class="grid grid-cols-3 gap-4">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 text-center">
+    <p class="text-3xl font-bold text-gray-800">{{ stats.total }}</p>
+    <p class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Total Associates</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 text-center">
+    <p class="text-3xl font-bold text-wgreen">{{ stats.working }}</p>
+    <p class="text-xs text-gray-500 mt-1 uppercase tracking-wide">Working</p>
+  </div>
+  <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-4 text-center">
+    <p class="text-3xl font-bold
+              {% if stats.on_break > 0 %}text-yellow-500{% else %}text-gray-300{% endif %}">
+      {{ stats.on_break }}
+    </p>
+    <p class="text-xs text-gray-500 mt-1 uppercase tracking-wide">On Break</p>
+  </div>
+</div>
